@@ -1,5 +1,7 @@
 #include "diccionario.h"
 #include "stdlib.h"
+#define SEMILLA_HASH 5381
+#define FACTOR_CARGA 0.7
 
 struct nodo_diccionario{
         struct diccionario_par par;
@@ -12,13 +14,15 @@ struct diccionario{
         size_t cantidad;
 };
 
+
+
 /**
  * PRE: 'clave' debe ser un string no nulo
  * POST: devuelve un hash para la clave pasada
  */
 static size_t hash_djb2(const char *clave)
 {
-        size_t hash = 5381;
+        size_t hash = SEMILLA_HASH;
         int c;
 
         while((c = *clave++)) 
@@ -47,16 +51,16 @@ static void destruir_lista_hash(struct nodo_diccionario *primer_nodo,  void (*de
 }
 
 /**
- * PRE: 'clave' debe ser un string no nulo, y 'dict' debe ser un diccionario válido
+ * PRE: 'clave' debe ser un string no nulo, y 'd' debe ser un diccionario válido
  * POST: devuelve el puntero al nodo que tiene la clave pasada, NULL si no se encuentra esa clave en el diccionario.
  */
-static struct nodo_diccionario *obtener_nodo(const char *clave, diccionario_t *dict)
+static struct nodo_diccionario *obtener_nodo(const char *clave, diccionario_t *d)
 {
-        if(!clave || !dict)
+        if(!clave || !d)
                 return NULL;
 
-        size_t posicion = hash_djb2(clave) % dict->capacidad;
-        struct nodo_diccionario* nodo_aux = dict->tabla[posicion];
+        size_t posicion = hash_djb2(clave) % d->capacidad;
+        struct nodo_diccionario* nodo_aux = d->tabla[posicion];
 
         while (nodo_aux != NULL 
                 && strcmp(nodo_aux->par.clave, clave) != 0)
@@ -65,25 +69,47 @@ static struct nodo_diccionario *obtener_nodo(const char *clave, diccionario_t *d
         return nodo_aux;
 }
 
+/**
+ * PRE: 'd' debe ser un diccionario válido, si es nulo se devuelve false
+ * POST: Se duplica el tamaño de la tabla de 'd' y se reubican todos los elementos en la nueva tabla agrandada, si no hay errores devuelve true, si hay errores devuelve false
+ */
+static bool rehashear(diccionario_t *d)
+{
+        if(!d)
+                return false;
+
+        struct nodo_diccionario **tabla_expandida = calloc(d->capacidad * 2, sizeof(struct nodo_diccionario*));
+        if (!tabla_expandida)
+                return false;
+        
+        size_t capacidad_original = d->capacidad;
+
+        for(size_t i; i < capacidad_original; i++)
+                reubicar_nodo(d->tabla[i], tabla_expandida);
+
+        free(d->tabla);
+        d->tabla = tabla_expandida;
+        return true;
+}
 /*
 * Crea un diccionario vacío con una capacidad inicial dada. La capacidad nunca puede ser menor a 3.
 */
 diccionario_t *diccionario_crear(size_t capacidad_inicial)
 {
-        diccionario_t *dict = calloc(1, sizeof(struct diccionario));
+        diccionario_t *d = calloc(1, sizeof(struct diccionario));
         
-        if (!dict)
+        if (!d)
                 return NULL;
 
-        dict->tabla = calloc(capacidad_inicial, sizeof(struct nodo_diccionario*));
+        d->tabla = calloc(capacidad_inicial, sizeof(struct nodo_diccionario*));
 
-        if (!dict->tabla){
-                free(dict);
+        if (!d->tabla){
+                free(d);
                 return NULL;
         }
 
-        dict->capacidad = capacidad_inicial;
-        return dict;
+        d->capacidad = capacidad_inicial;
+        return d;
 }
 
 /**
@@ -161,6 +187,40 @@ diccionario_t *diccionario_insertar(diccionario_t *d, const char *clave,
         if(!d || !clave)
                 return NULL;
 
-        
-                
+        struct nodo_diccionario *nodo_buscado = obtener_nodo(clave, d);
+
+        if (nodo_buscado){
+                if (nodo_buscado->par.valor)
+                        *valor_anterior = nodo_buscado->par.valor;
+                nodo_buscado->par.valor = valor;
+                return d;
+        }
+
+        if ((d->cantidad / d->capacidad) >= 0.7){
+                bool rehasheo_exitoso = rehashear(d);
+                if (!rehasheo_exitoso)
+                        return NULL;
+        }
+
+        struct nodo_diccionario *nuevo_nodo = calloc(1, sizeof(struct nodo_diccionario));
+        if (!nuevo_nodo)
+                return NULL;
+
+        nuevo_nodo->par.clave = clave;
+        nuevo_nodo->par.valor = valor;
+
+        size_t posicion = hash_djb2(clave) % d->capacidad;
+
+        if (!(d->tabla[posicion])) {
+                d->tabla[posicion] = nuevo_nodo;
+                return d;
+        }
+
+        struct nodo_diccionario *nodo_aux = d->tabla[posicion];
+
+        while (nodo_aux->siguiente)
+                nodo_aux = nodo_aux->siguiente;
+
+        nodo_aux->siguiente = nuevo_nodo;
+        return d;
 }
