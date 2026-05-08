@@ -1,68 +1,39 @@
 #include "pa2m.h"
 #include <stdio.h>
+#include <../src/diccionario.h>
 
-/**
- * DISCLAIMER:
- * - Esto es un ejemplo, este código no debe ser parte del archivo definitivo al 
- *   momento de la entrega final.
- * - Las funciones que se prueban (ej. sumar, es_par) se deben implementar
- *   en los archivos de código correspondientes (por ejemplo, lista.c), no 
- *   dentro de los archivos de pruebas.
- * - En este ejemplo se incluyen funciones mínimas implementadas (sumar(), las 
- *   demás son funciones necesarias para pruebas) solo para que el ejemplo 
- *   compile y se entienda la estructura de las pruebas.
- * - Para ver algo un poco más completo, revisar el template de ejemplo de 
- *   tests.
- */
-
-int sumar(int a, int b) {
-	return a + b;
+//debería devolver 3 como capacidad
+void prueba_diccionario_crear()
+{
+        diccionario_t *nuevo_diccionario = diccionario_crear(3);
+        pa2m_afirmar(nuevo_diccionario != NULL & diccionario_cantidad(nuevo_diccionario) == 0, "Crear un nuevo diccionario y que esté vacío.");
+        diccionario_destruir(nuevo_diccionario);
 }
 
-/**
- * Pruebas de suma
- */
-
-void prueba_sumar_positivos() {
-	// Inicialización
-	int primer_sumando = 1, segundo_sumando = 2;
-	int resultado = sumar(primer_sumando, segundo_sumando);
-
-	// Afirmación
-	pa2m_afirmar(resultado == 3, "La suma de %i y %i es %i", primer_sumando, segundo_sumando, resultado);
-
-	// Destrucción (si es necesario)
+void prueba_diccionario_manejar_NULL()
+{
+        diccionario_insertar(NULL, NULL, NULL, NULL);
+        diccionario_eliminar(NULL, NULL);
+        diccionario_obtener(NULL, NULL);
+        diccionario_existe(NULL, NULL);
+        diccionario_cantidad(NULL);
+        diccionario_con_cada_elemento(NULL, NULL, NULL);
+        diccionario_destruir_todo(NULL, NULL);
+        diccionario_destruir(NULL);
 }
 
-void prueba_sumar_con_numeros_negativos() {
-	// Inicialización
-	int primer_sumando = -5, segundo_sumando = -3, primer_resultado_esperado = -8;
-	int tercer_sumando = -1, cuarto_sumando = 7, segundo_resultado_esperado = 6;
-
-	int primer_resultado = sumar(primer_sumando, segundo_sumando);
-	int segundo_resultado = sumar(tercer_sumando, cuarto_sumando);
-
-	// Afirmación
-	pa2m_afirmar(primer_resultado == primer_resultado_esperado,
-		"La suma de dos números negativos es correcta (obtenido = %d; esperado = %d)",
-		primer_resultado, primer_resultado_esperado);
-
-	pa2m_afirmar(segundo_resultado == segundo_resultado_esperado,
-		"La suma de un número negativo y un número positivo es correcta (%d = %d)",
-		segundo_resultado, segundo_resultado_esperado);
-
-	// Destrucción (si es necesario)
+void prueba_diccionario_insertar()
+{
+        diccionario_t *nuevo_diccionario = diccionario_crear(3);
+        const char *CLAVE = "Primero";
+        int valor = 0;
+        diccionario_insertar(nuevo_diccionario, CLAVE, &valor, NULL);
+        bool existe = diccionario_existe(nuevo_diccionario, CLAVE);
+        size_t cantidad = diccionario_cantidad(nuevo_diccionario);
+        int *valor_recuperado = diccionario_obtener(nuevo_diccionario, CLAVE);
+        pa2m_afirmar(existe && cantidad == 1 && valor_recuperado == &valor, "Cargar un par clave-valor sin errores." );
+        diccionario_destruir(nuevo_diccionario);
 }
-
-void pruebas_unitarias_sumar() {
-	prueba_sumar_positivos();
-
-	prueba_sumar_con_numeros_negativos();
-}
-
-/**
- * Main: Conjunto de grupos de pruebas
- */
 
 int main() {
 	pa2m_nuevo_grupo("============== PRUEBAS DEL TP X ===============");

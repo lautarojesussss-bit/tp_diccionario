@@ -1,5 +1,6 @@
 #include "diccionario.h"
-#include "stdlib.h"
+#include <stdlib.h>
+#include <string.h>
 #define SEMILLA_HASH 5381
 #define FACTOR_CARGA 0.7
 
@@ -196,7 +197,7 @@ diccionario_t *diccionario_insertar(diccionario_t *d, const char *clave,
                 return d;
         }
 
-        if ((d->cantidad / d->capacidad) >= 0.7){
+        if ((d->cantidad / d->capacidad) >= FACTOR_CARGA){
                 bool rehasheo_exitoso = rehashear(d);
                 if (!rehasheo_exitoso)
                         return NULL;
@@ -206,21 +207,45 @@ diccionario_t *diccionario_insertar(diccionario_t *d, const char *clave,
         if (!nuevo_nodo)
                 return NULL;
 
-        nuevo_nodo->par.clave = clave;
-        nuevo_nodo->par.valor = valor;
-
-        size_t posicion = hash_djb2(clave) % d->capacidad;
-
-        if (!(d->tabla[posicion])) {
-                d->tabla[posicion] = nuevo_nodo;
-                return d;
+        const char *clave_copia = malloc(strlen(clave) + 1);
+        if (!clave_copia){
+                free(nuevo_nodo);
+                return NULL;
         }
 
-        struct nodo_diccionario *nodo_aux = d->tabla[posicion];
+        strcpy(clave_copia, clave);
+        nuevo_nodo->par.valor = valor;
+        
+        size_t posicion = hash_djb2(clave) % d->capacidad;
 
-        while (nodo_aux->siguiente)
-                nodo_aux = nodo_aux->siguiente;
-
-        nodo_aux->siguiente = nuevo_nodo;
+        nuevo_nodo->siguiente = d->tabla[posicion];
+        d->tabla[posicion] = nuevo_nodo;
+        *valor_anterior = NULL; 
         return d;
+}
+
+size_t diccionario_con_cada_elemento(diccionario_t *d,
+				     bool (*f)(struct diccionario_par *,
+					       void *),
+				     void *extra)
+{
+        if (!d || !f || d->cantidad == 0)
+                return 0;
+
+        size_t cant_evaluados = 0;
+        size_t capacidad = d->capacidad;
+        bool seguimos = true;
+
+        for (size_t i; i < capacidad && seguimos; i++)
+        {
+                struct nodo_diccionario *nodo_actual = d->tabla[i];
+
+                while (nodo_actual != NULL && seguimos){
+                        seguimos = f(&(nodo_actual->par), extra);
+                        cant_evaluados++;
+                        nodo_actual = nodo_actual->siguiente;
+                }          
+        }
+
+        return cant_evaluados;
 }
